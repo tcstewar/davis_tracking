@@ -14,7 +14,12 @@ class ConvNet(object):
         self.layers = []
         self.output_shapes = []
         
-    def make_input_layer(self, source_shape, spatial_stride, spatial_size):        
+    def make_input_layer(self, source_shape,
+                         spatial_stride=(1, 1),
+                         spatial_size=None):        
+        if spatial_size is None:
+            spatial_size = (source_shape[2], source_shape[1])
+
         with self.net:
             self.input = nengo.Node(None,
                     size_in=source_shape[0]*source_shape[1]*source_shape[2],
@@ -49,8 +54,7 @@ class ConvNet(object):
                                        spatial_size[1]))
             
     def make_middle_layer(self, n_features, n_parallel,
-                          n_local, n_remote, kernel_stride, kernel_size):
-        assert n_remote == 0   # Not implemented yet
+                          n_local, kernel_stride, kernel_size):
         with self.net:
             prev_layer = self.layers[-1]
             prev_output_shape = self.output_shapes[-1]
