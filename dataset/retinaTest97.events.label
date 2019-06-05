@@ -1,0 +1,30 @@
+ball = Trace(['x','y','r'])
+
+
+ball.frame(t=1.072, x=83, y=144, r=25)
+
+ball.frame(t=1.109, x=51, y=107, r=25)
+
+ball.frame(t=1.147, x=23, y=71, r=25)
+
+ball.frame(t=1.168, x=33, y=63, r=25)
+
+ball.frame(t=1.231, x=64, y=42, r=25)
+
+ball.frame(t=1.347, x=113, y=3, r=25)
+
+ball.frame(t=1.385, x=125, y=-10, r=25)
+
+ball.frame(t=1.460, x=158, y=-5, r=25)
+
+ball.frame(t=1.560, x=192, y=18, r=25)
+
+ball.frame(t=1.646, x=216, y=36, r=25)
+
+ball.frame(t=1.720, x=203, y=50, r=25)
+
+ball.frame(t=1.935, x=174, y=89, r=25)
+
+ball.frame(t=2.134, x=152, y=122, r=25)
+
+ball.frame(t=2.604, x=106, y=179, r=25)
