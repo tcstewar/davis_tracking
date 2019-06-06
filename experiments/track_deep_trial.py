@@ -19,7 +19,6 @@ class TrackingTrial(pytry.PlotTrial):
         self.param('decay time (input synapse)', decay_time=0.01)
         self.param('test set (odd|one)', test_set='one')
         self.param('augment training set with flips', augment=False)
-        self.param('output filter', output_filter=0.01)
         self.param('miniback size', minibatch_size=200)
         self.param('learning rate', learning_rate=1e-3)
         self.param('number of epochs', n_epochs=5)
