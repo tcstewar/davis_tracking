@@ -131,9 +131,9 @@ class TrackingTrial(pytry.PlotTrial):
                         spatial_stride=(p.spatial_stride, p.spatial_stride), 
                         spatial_size=(p.spatial_size,p.spatial_size))
                 nengo.Connection(inp, convnet.input)
-                convnet.make_middle_layer(n_features=p.n_features_1, n_parallel=p.n_parallel, n_local=1, n_remote=0,
+                convnet.make_middle_layer(n_features=p.n_features_1, n_parallel=p.n_parallel, n_local=1,
                                           kernel_stride=(p.stride_1,p.stride_1), kernel_size=(p.kernel_size_1,p.kernel_size_1))
-                convnet.make_middle_layer(n_features=p.n_features_2, n_parallel=p.n_parallel, n_local=1, n_remote=0,
+                convnet.make_middle_layer(n_features=p.n_features_2, n_parallel=p.n_parallel, n_local=1,
                                           kernel_stride=(p.stride_2,p.stride_2), kernel_size=(p.kernel_size_2,p.kernel_size_2))
                 convnet.make_output_layer(2)
                 nengo.Connection(convnet.output, out)
@@ -155,15 +155,13 @@ class TrackingTrial(pytry.PlotTrial):
 
             if p.n_epochs > 0:
                 sim.train(dl_train_data, tf.train.RMSPropOptimizer(learning_rate=p.learning_rate),
-                      n_epochs=p.n_epochs)
+                          n_epochs=p.n_epochs)
 
-            #loss_post = sim.loss(dl_test_data)
+            loss_post = sim.loss(dl_test_data)
 
             sim.run_steps(n_steps, data=dl_test_data)
 
         data = sim.data[p_out].reshape(-1,2)[:len(targets_test)]
-        filt = nengo.synapses.Lowpass(p.output_filter)
-        data = filt.filt(data, dt=dt_test)
         
         rmse_test = np.sqrt(np.mean((targets_test-data)**2, axis=0))*p.merge          
         if plt:
@@ -171,8 +169,9 @@ class TrackingTrial(pytry.PlotTrial):
             plt.plot(targets_test*p.merge, ls='--')
             
         return dict(
-            #loss_pre=loss_pre,
-            #loss_post=loss_post
             rmse_test = rmse_test,
-            max_n_neurons = max([ens.n_neurons for ens in model.all_ensembles]) 
+            max_n_neurons = max([ens.n_neurons for ens in model.all_ensembles]),
+            test_targets = targets_test,
+            test_output = data,
+            test_loss = loss_post
             )
