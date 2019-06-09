@@ -35,6 +35,7 @@ class TrackingTrial(pytry.PlotTrial):
         self.param('spatial kernel size', spatial_size=20)
         self.param('number of parallel ensembles', n_parallel=2)
         self.param('merge pixels (to make a smaller image)', merge=3)
+        self.param('normalize inputs', normalize=False)
         
         
     def evaluate(self, p, plt):
@@ -89,9 +90,17 @@ class TrackingTrial(pytry.PlotTrial):
             shape = (1, 180//p.merge, 240//p.merge)
         
         dimensions = shape[0]*shape[1]*shape[2]
-        eval_points_train = inputs_train.reshape(-1, dimensions)
-        eval_points_test = inputs_test.reshape(-1, dimensions)
 
+        
+        if p.normalize:
+            magnitude = np.linalg.norm(inputs_train.reshape(-1, dimensions), axis=1)
+            inputs_train = inputs_train*(1.0/magnitude[:,None,None])
+            
+            magnitude = np.linalg.norm(inputs_test.reshape(-1, dimensions), axis=1)
+            inputs_test = inputs_test*(1.0/magnitude[:,None,None])
+                    
+        
+        
         max_rate = 100
         amp = 1 / max_rate
 
