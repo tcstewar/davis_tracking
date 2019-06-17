@@ -180,6 +180,10 @@ class TrackingTrial(pytry.PlotTrial):
                                           kernel_stride=(1,1), kernel_size=(3,3), init=init, use_neurons=False)
                 convnet.make_merged_output(output_shape)
                 nengo.Connection(convnet.output, out)
+
+                if params is not None:
+                    #TODO: actually do this!  Even though it involved annoying slicing
+                    print('WARNING: gains and biases are not being set from loaded data')
                          
 
             p_out = nengo.Probe(out)
