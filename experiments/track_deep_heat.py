@@ -182,8 +182,15 @@ class TrackingTrial(pytry.PlotTrial):
                 nengo.Connection(convnet.output, out)
 
                 if params is not None:
-                    #TODO: actually do this!  Even though it involved annoying slicing
-                    print('WARNING: gains and biases are not being set from loaded data')
+                    assert np.allclose(params[0]['gain'], 100, atol=1e-5)
+                    assert np.allclose(params[1]['gain'], 100, atol=1e-5)
+                    if np.max(np.abs(params[0]['bias'])) > 1e-8:
+                        print('WARNING: biases are not yet being set on the neurons')
+                    if np.max(np.abs(params[1]['bias'])) > 1e-8:
+                        print('WARNING: biases are not yet being set on the neurons')
+                    #assert np.allclose(params[0]['bias'], 0, atol=1e-4)
+                    #assert np.allclose(params[1]['bias'], 0, atol=1e-4)
+                    #TODO: actually do this!  Even though it involves annoying slicing
                          
 
             p_out = nengo.Probe(out)
