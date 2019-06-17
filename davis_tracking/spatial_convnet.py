@@ -96,3 +96,27 @@ class ConvNet(object):
                     for k in col:
                         nengo.Connection(k, self.output,
                                          transform=nengo_dl.dists.Glorot())
+                        
+    def make_merged_output(self, shape):
+        with self.net:
+            self.output = nengo.Node(None, size_in=shape[0]*shape[1], label='output')
+            indices = np.arange(shape[0]*shape[1]).reshape(shape)
+
+            count = np.zeros(self.output.size_out)
+
+            patch_shape = self.output_shapes[-1].shape
+            assert patch_shape[0] == 1
+            i = 0
+            j = 0
+            for row in self.layers[-1]:
+                for n in row:
+                    assert len(n) == 1
+                    n = n[0]
+                    items = indices[j:j+patch_shape[2],i:i+patch_shape[1]]
+                    nengo.Connection(n, self.output[items.flatten()])
+                    count[items.flatten()] += 1
+                    i += patch_shape[1]
+                j += patch_shape[2]
+                i = 0
+            assert count.min() == count.max() == 1
+

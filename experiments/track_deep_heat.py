@@ -24,13 +24,13 @@ class TrackingTrial(pytry.PlotTrial):
         self.param('number of epochs', n_epochs=5)
         self.param('saturation', saturation=5)
         self.param('separate positive and negative channels', separate_channels=True)
-        self.param('number of features in layer 1', n_features_1=28)
-        self.param('number of features in layer 2', n_features_2=64)
+        self.param('number of features in layer 1', n_features_1=10)
+        self.param('number of features in layer 2', n_features_2=10)
         self.param('split spatial configuration', split_spatial=False)
-        self.param('spatial stride', spatial_stride=10)
-        self.param('spatial kernel size', spatial_size=20)
+        self.param('spatial stride', spatial_stride=6)
+        self.param('spatial kernel size', spatial_size=12)
         self.param('number of parallel ensembles', n_parallel=1)
-        self.param('merge pixels (to make a smaller image)', merge=4)
+        self.param('merge pixels (to make a smaller image)', merge=5)
         self.param('normalize inputs', normalize=False)
         
         
@@ -90,6 +90,7 @@ class TrackingTrial(pytry.PlotTrial):
             shape = (2, 180//p.merge, 240//p.merge)
         else:
             shape = (1, 180//p.merge, 240//p.merge)
+        output_shape = shape[1]-strip_edges*2, shape[2]-strip_edges*2
         
         dimensions = shape[0]*shape[1]*shape[2]
 
@@ -142,7 +143,6 @@ class TrackingTrial(pytry.PlotTrial):
 
                 nengo.Connection(layer2.neurons, out, transform=conv3)
             else:
-                assert False
                 # do the weird spatially split convnet
                 convnet = davis_tracking.ConvNet(nengo.Network())
                 convnet.make_input_layer(
@@ -151,10 +151,12 @@ class TrackingTrial(pytry.PlotTrial):
                         spatial_size=(p.spatial_size,p.spatial_size))
                 nengo.Connection(inp, convnet.input)
                 convnet.make_middle_layer(n_features=p.n_features_1, n_parallel=p.n_parallel, n_local=1,
-                                          kernel_stride=(p.stride_1,p.stride_1), kernel_size=(p.kernel_size_1,p.kernel_size_1))
+                                          kernel_stride=(1,1), kernel_size=(3,3))
                 convnet.make_middle_layer(n_features=p.n_features_2, n_parallel=p.n_parallel, n_local=1,
-                                          kernel_stride=(p.stride_2,p.stride_2), kernel_size=(p.kernel_size_2,p.kernel_size_2))
-                convnet.make_output_layer(2)
+                                          kernel_stride=(1,1), kernel_size=(3,3))
+                convnet.make_middle_layer(n_features=1, n_parallel=p.n_parallel, n_local=1,
+                                          kernel_stride=(1,1), kernel_size=(3,3))
+                convnet.make_merged_output(output_shape)
                 nengo.Connection(convnet.output, out)
                          
 
@@ -182,7 +184,6 @@ class TrackingTrial(pytry.PlotTrial):
 
         data = sim.data[p_out].reshape(-1,targets_train.shape[-1])[:len(targets_test)]
 
-        output_shape = shape[1]-strip_edges*2, shape[2]-strip_edges*2
         data_peak = np.array([davis_tracking.find_peak(d.reshape(output_shape)) for d in data])
         target_peak = np.array([davis_tracking.find_peak(d.reshape(output_shape)) for d in targets_test])
 
