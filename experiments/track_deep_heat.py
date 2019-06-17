@@ -26,16 +26,11 @@ class TrackingTrial(pytry.PlotTrial):
         self.param('separate positive and negative channels', separate_channels=True)
         self.param('number of features in layer 1', n_features_1=28)
         self.param('number of features in layer 2', n_features_2=64)
-        self.param('kernel size layer 1', kernel_size_1=5)
-        self.param('stride layer 1', stride_1=3)
-        self.param('kernel size layer 2', kernel_size_2=3)
-        self.param('stride layer 2', stride_2=1)
-        self.param('kernel size layer 3', kernel_size_3=3)
-        self.param('split spatial configuration', split_spatial=True)
+        self.param('split spatial configuration', split_spatial=False)
         self.param('spatial stride', spatial_stride=10)
         self.param('spatial kernel size', spatial_size=20)
-        self.param('number of parallel ensembles', n_parallel=2)
-        self.param('merge pixels (to make a smaller image)', merge=3)
+        self.param('number of parallel ensembles', n_parallel=1)
+        self.param('merge pixels (to make a smaller image)', merge=4)
         self.param('normalize inputs', normalize=False)
         
         
@@ -53,23 +48,31 @@ class TrackingTrial(pytry.PlotTrial):
         if p.n_data != -1:
             files = random.sample(files, p.n_data)
             
+        
+            
+        strip_edges = 3  #  the number of edge pixels to remove due to convolution
+        
         inputs = []
         targets = []
+        targets_raw = []
         for f in files:
             times, imgs, targs = davis_tracking.load_data(f, dt=p.dt, decay_time=p.decay_time,
                                                   separate_channels=p.separate_channels, 
                                                   saturation=p.saturation, merge=p.merge)
             inputs.append(imgs)
-            targets.append(davis_tracking.make_heatmap(targs, merge=p.merge).reshape(len(targs),-1))
+            targets_raw.append(targs[:, :2])
+            targets.append(davis_tracking.make_heatmap(targs, merge=p.merge, strip_edges=strip_edges).reshape(len(targs),-1))
                                 
         inputs_all = np.vstack(inputs)
         targets_all = np.vstack(targets)
+        targets_all_raw = np.vstack(targets_raw)
         
         if p.test_set == 'odd':
             inputs_train = inputs_all[::2]
             inputs_test = inputs_all[1::2]
             targets_train = targets_all[::2]
             targets_test = targets_all[1::2]
+            targets_test_raw = targets_all_raw[1::2]
             dt_test = p.dt*2
         elif p.test_set == 'one':
             times, imgs, targs = davis_tracking.load_data(test_file, dt=p.dt_test, decay_time=p.decay_time,
@@ -77,7 +80,8 @@ class TrackingTrial(pytry.PlotTrial):
                                                   saturation=p.saturation, merge=p.merge)
             inputs_test = imgs
 
-            targets_test = davis_tracking.make_heatmap(targs, merge=p.merge).reshape(len(targs), -1)
+            targets_test_raw = targs
+            targets_test = davis_tracking.make_heatmap(targs, merge=p.merge, strip_edges=strip_edges).reshape(len(targs), -1)
             inputs_train = inputs_all
             targets_train = targets_all
             dt_test = p.dt_test
@@ -120,21 +124,21 @@ class TrackingTrial(pytry.PlotTrial):
             
             if not p.split_spatial:
                 # do a standard convnet
-                conv1 = nengo.Convolution(p.n_features_1, shape, channels_last=False, strides=(p.stride_1,p.stride_1),
-                                          padding='same',
-                                          kernel_size=(p.kernel_size_1, p.kernel_size_1))
+                conv1 = nengo.Convolution(p.n_features_1, shape, channels_last=False, strides=(1,1),
+                                          padding='valid',
+                                          kernel_size=(3,3))
                 layer1 = nengo.Ensemble(conv1.output_shape.size, dimensions=1)
                 nengo.Connection(inp, layer1.neurons, transform=conv1)
 
-                conv2 = nengo.Convolution(p.n_features_2, conv1.output_shape, channels_last=False, strides=(p.stride_2,p.stride_2),
-                                          padding='same',
-                                          kernel_size=(p.kernel_size_2, p.kernel_size_2))
+                conv2 = nengo.Convolution(p.n_features_2, conv1.output_shape, channels_last=False, strides=(1,1),
+                                          padding='valid',
+                                          kernel_size=(3,3))
                 layer2 = nengo.Ensemble(conv2.output_shape.size, dimensions=1)
                 nengo.Connection(layer1.neurons, layer2.neurons, transform=conv2)
 
                 conv3 = nengo.Convolution(1, conv2.output_shape, channels_last=False, strides=(1,1),
-                                          padding='same',
-                                          kernel_size=(p.kernel_size_3, p.kernel_size_3))
+                                          padding='valid',
+                                          kernel_size=(3,3))
 
                 nengo.Connection(layer2.neurons, out, transform=conv3)
             else:
@@ -178,8 +182,9 @@ class TrackingTrial(pytry.PlotTrial):
 
         data = sim.data[p_out].reshape(-1,targets_train.shape[-1])[:len(targets_test)]
 
-        data_peak = np.array([davis_tracking.find_peak(d.reshape(shape[1:])) for d in data])
-        target_peak = np.array([davis_tracking.find_peak(d.reshape(shape[1:])) for d in targets_test])
+        output_shape = shape[1]-strip_edges*2, shape[2]-strip_edges*2
+        data_peak = np.array([davis_tracking.find_peak(d.reshape(output_shape)) for d in data])
+        target_peak = np.array([davis_tracking.find_peak(d.reshape(output_shape)) for d in targets_test])
 
 
         
@@ -187,12 +192,14 @@ class TrackingTrial(pytry.PlotTrial):
         if plt:
             plt.plot(data_peak*p.merge)
             plt.plot(target_peak*p.merge, ls='--')
+            plt.plot((targets_test_raw-strip_edges)*p.merge, ls=':')
             
         return dict(
             rmse_test = rmse_test,
             max_n_neurons = max([ens.n_neurons for ens in model.all_ensembles]),
-            test_targets = targets_test,
-            test_output = data,
+            #test_targets = targets_test,
+            test_targets_raw = targets_test_raw,
+            #test_output = data,
             target_peak = target_peak,
             data_peak = data_peak,
             test_loss = loss_post,

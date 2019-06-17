@@ -54,7 +54,7 @@ class ConvNet(object):
                                        spatial_size[1]))
             
     def make_middle_layer(self, n_features, n_parallel,
-                          n_local, kernel_stride, kernel_size):
+                          n_local, kernel_stride, kernel_size, padding='valid'):
         with self.net:
             prev_layer = self.layers[-1]
             prev_output_shape = self.output_shapes[-1]
@@ -69,6 +69,7 @@ class ConvNet(object):
                         conv = nengo.Convolution(n_features, prev_output_shape,
                                                  channels_last=False,
                                                  kernel_size=kernel_size,
+                                                 padding=padding,
                                                  strides=kernel_stride)
                         ens = nengo.Ensemble(conv.output_shape.size, dimensions=1,
                                              label='%s' % conv.output_shape)
@@ -77,6 +78,7 @@ class ConvNet(object):
                             conv = nengo.Convolution(n_features, prev_output_shape,
                                                      channels_last=False,
                                                      kernel_size=kernel_size,
+                                                     padding=padding,
                                                      strides=kernel_stride)
                             nengo.Connection(prev_k, ens.neurons, transform=conv)
                             index += 1
