@@ -32,6 +32,8 @@ class TrackingTrial(pytry.PlotTrial):
         self.param('number of parallel ensembles', n_parallel=1)
         self.param('merge pixels (to make a smaller image)', merge=5)
         self.param('normalize inputs', normalize=False)
+        self.param('save parameters', save_params=True)
+        self.param('load parameters from a file', load_params_from='')
         
         
     def evaluate(self, p, plt):
@@ -47,6 +49,11 @@ class TrackingTrial(pytry.PlotTrial):
         
         if p.n_data != -1:
             files = random.sample(files, p.n_data)
+
+        if p.load_params_from is not None:
+            params = np.load(p.load_params_from, allow_pickle=True)
+        else:
+            params = None
             
         
             
@@ -125,24 +132,37 @@ class TrackingTrial(pytry.PlotTrial):
             
             if not p.split_spatial:
                 # do a standard convnet
+                init = params[2]['transform'].init if params is not None else None
                 conv1 = nengo.Convolution(p.n_features_1, shape, channels_last=False, strides=(1,1),
                                           padding='valid',
-                                          kernel_size=(3,3))
+                                          kernel_size=(3,3),
+                                          init=init)
                 layer1 = nengo.Ensemble(conv1.output_shape.size, dimensions=1)
+                if params is not None:
+                    layer1.gain = params[0]['gain']
+                    layer1.bias = params[0]['bias']
                 nengo.Connection(inp, layer1.neurons, transform=conv1)
 
+                init = params[3]['transform'].init if params is not None else None
                 conv2 = nengo.Convolution(p.n_features_2, conv1.output_shape, channels_last=False, strides=(1,1),
                                           padding='valid',
-                                          kernel_size=(3,3))
+                                          kernel_size=(3,3),
+                                          init=init)
                 layer2 = nengo.Ensemble(conv2.output_shape.size, dimensions=1)
+                if params is not None:
+                    layer2.gain = params[1]['gain']
+                    layer2.bias = params[1]['bias']
                 nengo.Connection(layer1.neurons, layer2.neurons, transform=conv2)
 
+                init = params[4]['transform'].init if params is not None else None
                 conv3 = nengo.Convolution(1, conv2.output_shape, channels_last=False, strides=(1,1),
                                           padding='valid',
-                                          kernel_size=(3,3))
+                                          kernel_size=(3,3),
+                                          init=init)
 
                 nengo.Connection(layer2.neurons, out, transform=conv3)
             else:
+                assert params is None
                 # do the weird spatially split convnet
                 convnet = davis_tracking.ConvNet(nengo.Network())
                 convnet.make_input_layer(
@@ -155,7 +175,7 @@ class TrackingTrial(pytry.PlotTrial):
                 convnet.make_middle_layer(n_features=p.n_features_2, n_parallel=p.n_parallel, n_local=1,
                                           kernel_stride=(1,1), kernel_size=(3,3))
                 convnet.make_middle_layer(n_features=1, n_parallel=p.n_parallel, n_local=1,
-                                          kernel_stride=(1,1), kernel_size=(3,3))
+                                          kernel_stride=(1,1), kernel_size=(3,3), use_neurons=False)
                 convnet.make_merged_output(output_shape)
                 nengo.Connection(convnet.output, out)
                          
@@ -182,13 +202,20 @@ class TrackingTrial(pytry.PlotTrial):
 
             sim.run_steps(n_steps, data=dl_test_data)
 
+            if p.save_params:
+                assert not p.split_spatial
+
+                objects = list(model.all_ensembles) + list(model.all_connections)
+                params = sim.get_nengo_params(objects, as_dict=False)
+
+                np.save(os.path.join(p.data_dir, p.data_filename + '.params.npy'), params)
+
+
         data = sim.data[p_out].reshape(-1,targets_train.shape[-1])[:len(targets_test)]
 
         data_peak = np.array([davis_tracking.find_peak(d.reshape(output_shape)) for d in data])
         target_peak = np.array([davis_tracking.find_peak(d.reshape(output_shape)) for d in targets_test])
 
-
-        
         rmse_test = np.sqrt(np.mean((target_peak-data_peak)**2, axis=0))*p.merge          
         if plt:
             plt.plot(data_peak*p.merge)
