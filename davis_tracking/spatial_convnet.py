@@ -55,7 +55,7 @@ class ConvNet(object):
             
     def make_middle_layer(self, n_features, n_parallel,
                           n_local, kernel_stride, kernel_size, padding='valid',
-                          use_neurons=True, init=None):
+                          use_neurons=True, init=nengo.dists.Uniform(-1,1)):
         with self.net:
             prev_layer = self.layers[-1]
             prev_output_shape = self.output_shapes[-1]
