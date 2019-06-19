@@ -34,6 +34,8 @@ class TrackingTrial(pytry.PlotTrial):
         self.param('normalize inputs', normalize=False)
         self.param('save parameters', save_params=True)
         self.param('load parameters from a file', load_params_from='')
+        self.param('use nengo (instead of nengo_dl)', use_nengo=False)
+        self.param('use frame input (instead of events)', use_frames=False)
         
         
     def evaluate(self, p, plt):
@@ -66,6 +68,14 @@ class TrackingTrial(pytry.PlotTrial):
             times, imgs, targs = davis_tracking.load_data(f, dt=p.dt, decay_time=p.decay_time,
                                                   separate_channels=p.separate_channels, 
                                                   saturation=p.saturation, merge=p.merge)
+            if p.use_frames:
+                times_frames, frames_raw = davis_tracking.load_frames(f.replace('.events', '.frame'), merge=p.merge)
+                frames = []
+                for t in times:
+                    index = np.searchsorted(times_frames, t)
+                    frames.append(frames_raw[index])
+                imgs = np.array(frames)
+
             inputs.append(imgs)
             targets_raw.append(targs[:, :2])
             targets.append(davis_tracking.make_heatmap(targs, merge=p.merge, strip_edges=strip_edges).reshape(len(targs),-1))
@@ -85,6 +95,13 @@ class TrackingTrial(pytry.PlotTrial):
             times, imgs, targs = davis_tracking.load_data(test_file, dt=p.dt_test, decay_time=p.decay_time,
                                                   separate_channels=p.separate_channels, 
                                                   saturation=p.saturation, merge=p.merge)
+            if p.use_frames:
+                times_frames, frames_raw = davis_tracking.load_frames(test_file.replace('.events', '.frame'), merge=p.merge)
+                frames = []
+                for t in times:
+                    index = np.searchsorted(times_frames, t)
+                    frames.append(frames_raw[index])
+                imgs = np.array(frames)
             inputs_test = imgs
 
             targets_test_raw = targs
@@ -93,7 +110,7 @@ class TrackingTrial(pytry.PlotTrial):
             targets_train = targets_all
             dt_test = p.dt_test
             
-        if p.separate_channels:
+        if p.separate_channels and not p.use_frames:
             shape = (2, 180//p.merge, 240//p.merge)
         else:
             shape = (1, 180//p.merge, 240//p.merge)
@@ -138,6 +155,7 @@ class TrackingTrial(pytry.PlotTrial):
                                           kernel_size=(3,3),
                                           init=init)
                 layer1 = nengo.Ensemble(conv1.output_shape.size, dimensions=1)
+                p_layer1 = nengo.Probe(layer1.neurons)
                 if params is not None:
                     layer1.gain = params[0]['gain']
                     layer1.bias = params[0]['bias']
@@ -149,6 +167,7 @@ class TrackingTrial(pytry.PlotTrial):
                                           kernel_size=(3,3),
                                           init=init)
                 layer2 = nengo.Ensemble(conv2.output_shape.size, dimensions=1)
+                p_layer2 = nengo.Probe(layer2.neurons)
                 if params is not None:
                     layer2.gain = params[1]['gain']
                     layer2.bias = params[1]['bias']
@@ -194,6 +213,50 @@ class TrackingTrial(pytry.PlotTrial):
                          
 
             p_out = nengo.Probe(out)
+
+        if p.use_nengo:
+            #for ens in model.all_ensembles:
+            #    ens.neuron_type = nengo.SpikingRectifiedLinear(amplitude=amp)
+            with nengo.Simulator(model) as sim:
+                sim.run(len(inputs_test)*dt_test)
+            data = sim.data[p_out]
+            
+
+            data_peak = np.array([davis_tracking.find_peak(d.reshape(output_shape)) for d in data])
+            target_peak = np.array([davis_tracking.find_peak(d.reshape(output_shape)) for d in targets_test])
+
+            data_peak_f = nengo.synapses.Lowpass(0.01).filt(data_peak)
+            data_peak_f_slices = data_peak_f[::int(dt_test/0.001)]
+
+            rmse_test = np.sqrt(np.mean((target_peak-data_peak_f_slices)**2, axis=0))*p.merge          
+            if plt:
+                plt.subplot(1,1,1)
+                plt.plot(data_peak_f_slices*p.merge)
+                plt.plot(target_peak*p.merge, ls='--')
+                plt.plot((targets_test_raw-strip_edges)*p.merge, ls=':')
+
+                #plt.subplot(2,2,2)
+                #plt.plot(np.mean(data, axis=0))
+
+                '''
+                plt.subplot(2,2,2)
+                act = np.mean(sim.data[p_layer1], axis=0)
+                plt.hist(act[act>0], bins=np.linspace(0,0.3,30))
+                plt.subplot(2,2,3)
+                act = np.mean(sim.data[p_layer2], axis=0)
+                plt.hist(act[act>0], bins=np.linspace(0,0.3,30))
+                plt.subplot(2,2,4)
+                act = np.mean(sim.data[p_out], axis=0)
+                plt.hist(act[act>0], bins=np.linspace(0,0.5,30))
+                '''
+                
+            return dict(
+                rmse_test = rmse_test,
+                max_n_neurons = max([ens.n_neurons for ens in model.all_ensembles]),
+                test_targets_raw = targets_test_raw,
+                target_peak = target_peak,
+                data_peak = data_peak,
+                )
 
 
         N = len(inputs_train)

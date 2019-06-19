@@ -204,3 +204,33 @@ def load_data(filename, dt, decay_time, separate_channels=False,
     assert len(targets)==len(images)
 
     return times, images, targets/merge
+
+def load_frames(filename, merge=1):
+    packet_size = 4+180*240*2
+
+    with open(filename, 'rb') as f:
+        data = f.read()
+    data = np.fromstring(data, np.uint8)
+
+    t = data[3::packet_size].astype(np.uint32)
+    t = (t << 8) + data[2::packet_size]
+    t = (t << 8) + data[1::packet_size]
+    t = (t << 8) + data[0::packet_size]
+    t = t.astype(float) / 1000000 
+    images = []
+
+    for index, tt in enumerate(t):
+        d = data[index*packet_size+4:(index+1)*packet_size]
+        high = d[1::2]
+        low = d[0::2]
+        v = high.astype(int)<<8 + low
+        v = v.astype(float).reshape(180,240)/32768
+        
+        
+        merged_images = []
+        for i in range(merge):
+            for j in range(merge):
+                merged_images.append(v[i::merge,j::merge])
+                
+        images.append(np.mean(merged_images, axis=0))        
+    return t, np.array(images)
