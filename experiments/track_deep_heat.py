@@ -73,6 +73,8 @@ class TrackingTrial(pytry.PlotTrial):
                 frames = []
                 for t in times:
                     index = np.searchsorted(times_frames, t)
+                    if index == len(times_frames):
+                        index = -1
                     frames.append(frames_raw[index])
                 imgs = np.array(frames)
 
