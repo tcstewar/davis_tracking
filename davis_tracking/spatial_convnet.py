@@ -13,15 +13,19 @@ class ConvNet(object):
         self.net = net
         self.layers = []
         self.output_shapes = []
+        self.input = None
         
     def make_input_layer(self, source_shape,
                          spatial_stride=(1, 1),
-                         spatial_size=None):        
+                         spatial_size=None,
+                         use_separate_nodes=False):        
         if spatial_size is None:
             spatial_size = (source_shape[2], source_shape[1])
 
         with self.net:
-            self.input = nengo.Node(None,
+            if self.input is None:
+                self.input = nengo.Node(
+                    None,
                     size_in=source_shape[0]*source_shape[1]*source_shape[2],
                     label='input')
 
@@ -35,16 +39,21 @@ class ConvNet(object):
                 row = []
                 i = 0
                 while i + w <= source_shape[2]:
-                    sp = nengo.Node(None, size_in=w*h*source_shape[0],
+                    if use_separate_nodes:
+                        sp = nengo.Node(None, size_in=w*h*source_shape[0],
                                     label='[%d:%d,%d:%d]' % (j,j+h,i,i+w))
-                    row.append([sp])            
+                        row.append([sp])            
 
                     indices = np.array((items[j:j+h][:,i:i+w]).flat)
                     all_indices = []
                     for q in range(source_shape[0]):
                         all_indices.extend(indices+q*source_shape[1]*source_shape[2])
                     
-                    nengo.Connection(self.input[all_indices], sp)
+                    if use_separate_nodes:
+                        nengo.Connection(self.input[all_indices], sp)
+                    else:
+                        row.append([self.input[all_indices]])
+
                     i += spatial_stride[0]
                 j += spatial_stride[1]
                 layer.append(row)
