@@ -3,6 +3,23 @@ import nengo_dl
 import numpy as np
 
 
+def conv_to_dense(conv):
+    dense = np.empty((conv.size_out, conv.size_in))
+    
+    dt = 1
+    with nengo.Network() as model:
+        stim = nengo.Node(output=nengo.processes.PresentInput(
+            np.eye(conv.size_in), dt))
+        x = nengo.Node(size_in=conv.size_out)
+        nengo.Connection(stim, x, transform=conv, synapse=None)
+        p = nengo.Probe(x, synapse=None)
+    
+    with nengo.Simulator(model, dt=dt, progress_bar=False) as sim:
+        sim.run_steps(conv.size_in, progress_bar=False)
+
+    return sim.data[p].T
+
+
 class ConvNet(object):
     def __init__(self, net, max_rate=100):
         amp = 1 / max_rate
@@ -82,6 +99,11 @@ class ConvNet(object):
                                                  padding=padding,
                                                  strides=kernel_stride,
                                                  init=init)
+                        
+                        #from nengo._vendor.npconv2d import conv2d
+                        #for e in np.eye(conv.output_shape.size):
+                        #    T = conv2d(e, conv)
+                        
                         if use_neurons:
                             ens = nengo.Ensemble(conv.output_shape.size, dimensions=1,
                                                  label='%s' % conv.output_shape)
@@ -90,6 +112,17 @@ class ConvNet(object):
                             ens = nengo.Node(None, size_in=conv.output_shape.size,
                                              label='%s' % conv.output_shape)
                             ens_neurons = ens
+                            
+                        if len(self.layers) == 1:
+                            # work-around for NxSDK limitation with convolutional
+                            # weights in the first layer that have overlap in the
+                            # input slices. this requires the number of features
+                            # in the first layer to be fairly small so that
+                            # T.size is approximately <= 300^2
+                            T = conv_to_dense(conv)
+                        else:
+                            T = conv
+                            
                         for kk in range(n_local):
                             prev_k = prev_col[index%len(prev_col)]
                             conv = nengo.Convolution(n_features, prev_output_shape,
@@ -98,7 +131,7 @@ class ConvNet(object):
                                                      padding=padding,
                                                      strides=kernel_stride,
                                                      init=init)
-                            nengo.Connection(prev_k, ens_neurons, transform=conv)
+                            nengo.Connection(prev_k, ens_neurons, transform=T)
                             index += 1
                         col.append(ens_neurons)
                     row.append(col)
