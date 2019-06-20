@@ -205,14 +205,40 @@ class TrackingTrial(pytry.PlotTrial):
                 if params is not None:
                     assert np.allclose(params[0]['gain'], 100, atol=1e-5)
                     assert np.allclose(params[1]['gain'], 100, atol=1e-5)
-                    if np.max(np.abs(params[0]['bias'])) > 1e-8:
-                        print('WARNING: biases are not yet being set on the neurons')
-                    if np.max(np.abs(params[1]['bias'])) > 1e-8:
-                        print('WARNING: biases are not yet being set on the neurons')
-                    #assert np.allclose(params[0]['bias'], 0, atol=1e-4)
-                    #assert np.allclose(params[1]['bias'], 0, atol=1e-4)
-                    #TODO: actually do this!  Even though it involves annoying slicing
-                         
+
+
+                    def assign_bias(edge, full_bias, layer, n_features, stride):
+                        used = np.zeros_like(full_bias)
+                        start_x = 0
+                        start_y = 0
+                        w = p.spatial_size - edge
+                        h = p.spatial_size - edge
+                        full_w = shape[2] - edge
+                        full_h = shape[1] - edge
+                        assert len(full_bias) == full_w*full_h*n_features
+                        for row in layer:
+                            for patches in row:
+                                for patch in patches:
+                                    bias = np.zeros(patch.size_out)
+                                    assert patch.size_out == w*h*n_features
+                                    for i in range(w):
+                                        for j in range(h):
+                                            for k in range(n_features):
+                                                local_index = i + j*w + k*h*w
+                                                full_index = (start_x + i) + (start_y+j)*full_w + k*(full_w*full_h)
+                                                bias[local_index] = full_bias[full_index]
+                                                used[full_index] += 1
+                                    patch.ensemble.bias = bias
+                                    patch.ensemble.gain = np.ones(patch.size_out)*100
+                                start_x += stride
+                            start_x = 0
+                            start_y += stride
+
+                    assign_bias(edge=2, full_bias=params[0]['bias'], layer=convnet.layers[1], n_features=p.n_features_1, stride=p.spatial_stride)
+                    assign_bias(edge=4, full_bias=params[1]['bias'], layer=convnet.layers[2], n_features=p.n_features_2, stride=p.spatial_stride)
+
+
+
 
             p_out = nengo.Probe(out)
 
