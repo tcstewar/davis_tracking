@@ -91,14 +91,15 @@ def extract_images(filename,        # filename to load data from
                   ):
 
     if separate_channels:
-        t_pos, images_pos = extract_images(filename, dt, decay_time,
-                                           t_start, t_end, keep_neg=False,
-                                           saturation=saturation, merge=merge)
         t_neg, images_neg = extract_images(filename, dt, decay_time,
                                            t_start, t_end, keep_pos=False,
                                            saturation=saturation, merge=merge)
+        t_pos, images_pos = extract_images(filename, dt, decay_time,
+                                           t_start, t_end, keep_neg=False,
+                                           saturation=saturation, merge=merge)
         assert np.array_equal(t_pos, t_neg)
-        return t_pos, np.hstack([images_pos, images_neg])
+        return t_pos, np.hstack([images_neg,  # negative polarity first
+                                 images_pos])
 
 
     fn = '%s_%g_%g_%g_%g_%g_%d%s%s.cache.npz' % (filename, dt, decay_time,
@@ -174,6 +175,8 @@ def extract_images(filename,        # filename to load data from
         times.append(now)
 
     images = np.array(images)
+    images = np.abs(images) / merge**2 / decay_time
+
     times = np.array(times)
 
     np.savez(fn, times=times, images=images)

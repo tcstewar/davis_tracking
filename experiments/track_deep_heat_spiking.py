@@ -67,7 +67,7 @@ class TrackingTrial(pytry.PlotTrial):
             times, imgs, targs = davis_tracking.load_data(f, dt=p.dt, decay_time=p.decay_time,
                                                   separate_channels=p.separate_channels, 
                                                   saturation=p.saturation, merge=p.merge)
-            inputs.append(np.abs(imgs) / p.merge**2 / p.decay_time)  # to be consistent with DVSFileChipNode
+            inputs.append(imgs)
             targets_raw.append(targs[:, :2])
             targets.append(davis_tracking.make_heatmap(targs, merge=p.merge, strip_edges=strip_edges).reshape(len(targs),-1))
                                 
@@ -86,7 +86,7 @@ class TrackingTrial(pytry.PlotTrial):
             times, imgs, targs = davis_tracking.load_data(test_file, dt=p.dt_test, decay_time=p.decay_time,
                                                   separate_channels=p.separate_channels, 
                                                   saturation=p.saturation, merge=p.merge)
-            inputs_test = np.abs(imgs) / p.merge**2 / p.decay_time  # to be consistent with DVSFileChipNode
+            inputs_test = imgs
 
             targets_test_raw = targs
             targets_test = davis_tracking.make_heatmap(targs, merge=p.merge, strip_edges=strip_edges).reshape(len(targs), -1)
