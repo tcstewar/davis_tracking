@@ -202,10 +202,10 @@ class TrackingTrial(pytry.PlotTrial):
                 convnet.make_middle_layer(n_features=p.n_features_1, n_parallel=p.n_parallel, n_local=1,
                                           kernel_stride=(1,1), kernel_size=(3,3), init=init)
                 init = params[3]['transform'].init if params is not None else nengo.dists.Uniform(-1, 1)
-                convnet.make_middle_layer(n_features=p.n_features_2, n_parallel=p.n_parallel, n_local=1,
+                convnet.make_middle_layer(n_features=p.n_features_2, n_parallel=p.n_parallel, n_local=p.n_parallel,
                                           kernel_stride=(1,1), kernel_size=(3,3), init=init)
                 init = params[4]['transform'].init if params is not None else nengo.dists.Uniform(-1, 1)
-                convnet.make_middle_layer(n_features=1, n_parallel=p.n_parallel, n_local=1,
+                convnet.make_middle_layer(n_features=1, n_parallel=1, n_local=p.n_parallel,
                                           kernel_stride=(1,1), kernel_size=(3,3), init=init, use_neurons=False)
                 convnet.make_merged_output(output_shape)
                 nengo.Connection(convnet.output, out)
@@ -215,7 +215,7 @@ class TrackingTrial(pytry.PlotTrial):
                     assert np.allclose(params[1]['gain'], 100, atol=1e-5)
 
 
-                    def assign_bias(edge, full_bias, layer, n_features, stride):
+                    def assign_bias(edge, full_bias, layer, n_features, stride, n_parallel):
                         used = np.zeros_like(full_bias)
                         start_x = 0
                         start_y = 0
@@ -223,17 +223,17 @@ class TrackingTrial(pytry.PlotTrial):
                         h = p.spatial_size - edge
                         full_w = shape[2] - edge
                         full_h = shape[1] - edge
-                        assert len(full_bias) == full_w*full_h*n_features
+                        assert len(full_bias) == full_w*full_h*n_features*n_parallel
                         for row in layer:
                             for patches in row:
-                                for patch in patches:
+                                for q, patch in enumerate(patches):
                                     bias = np.zeros(patch.size_out)
                                     assert patch.size_out == w*h*n_features
                                     for i in range(w):
                                         for j in range(h):
                                             for k in range(n_features):
                                                 local_index = i + j*w + k*h*w
-                                                full_index = (start_x + i) + (start_y+j)*full_w + k*(full_w*full_h)
+                                                full_index = (start_x + i) + (start_y+j)*full_w + (k+q*n_features)*(full_w*full_h)
                                                 bias[local_index] = full_bias[full_index]
                                                 used[full_index] += 1
                                     patch.ensemble.bias = bias
@@ -242,8 +242,8 @@ class TrackingTrial(pytry.PlotTrial):
                             start_x = 0
                             start_y += stride
 
-                    assign_bias(edge=2, full_bias=params[0]['bias'], layer=convnet.layers[1], n_features=p.n_features_1, stride=p.spatial_stride)
-                    assign_bias(edge=4, full_bias=params[1]['bias'], layer=convnet.layers[2], n_features=p.n_features_2, stride=p.spatial_stride)
+                    assign_bias(edge=2, full_bias=params[0]['bias'], layer=convnet.layers[1], n_features=p.n_features_1, stride=p.spatial_stride, n_parallel=p.n_parallel)
+                    assign_bias(edge=4, full_bias=params[1]['bias'], layer=convnet.layers[2], n_features=p.n_features_2, stride=p.spatial_stride, n_parallel=p.n_parallel)
 
 
 
@@ -261,7 +261,7 @@ class TrackingTrial(pytry.PlotTrial):
             data_peak = np.array([davis_tracking.find_peak(d.reshape(output_shape)) for d in data])
             target_peak = np.array([davis_tracking.find_peak(d.reshape(output_shape)) for d in targets_test])
 
-            data_peak_f = nengo.synapses.Lowpass(0.01).filt(data_peak)
+            data_peak_f = nengo.synapses.Lowpass(0.0).filt(data_peak)
             data_peak_f_slices = data_peak_f[::int(dt_test/0.001)]
 
             rmse_test = np.sqrt(np.mean((target_peak-data_peak_f_slices)**2, axis=0))*p.merge          

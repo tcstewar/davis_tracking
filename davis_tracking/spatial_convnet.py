@@ -73,15 +73,31 @@ class ConvNet(object):
                 row = []
                 for prev_col in prev_row:
                     col = []
+                    this_index = 0
                     
                     index = 0
                     for k in range(n_parallel):
+                        prev_index = 0
+                        if isinstance(init, nengo.dists.Distribution):
+                            this_inits = [init] * n_local
+                        else:
+                            this_inits = []
+                            prev_size = init.shape[2] // n_local
+
+                            for i in range(n_local):
+
+                                this_init = init[:,:,prev_index:prev_index+prev_size,
+                                             this_index:this_index+n_features]
+                                prev_index = (prev_index + prev_size)
+                                this_inits.append(this_init)
+                            this_index = (this_index + n_features)
+
                         conv = nengo.Convolution(n_features, prev_output_shape,
                                                  channels_last=False,
                                                  kernel_size=kernel_size,
                                                  padding=padding,
                                                  strides=kernel_stride,
-                                                 init=init)
+                                                 init=this_inits[0])
                         if use_neurons:
                             ens = nengo.Ensemble(conv.output_shape.size, dimensions=1,
                                                  label='%s' % conv.output_shape)
@@ -97,7 +113,7 @@ class ConvNet(object):
                                                      kernel_size=kernel_size,
                                                      padding=padding,
                                                      strides=kernel_stride,
-                                                     init=init)
+                                                     init=this_inits[kk])
                             nengo.Connection(prev_k, ens_neurons, transform=conv)
                             index += 1
                         col.append(ens_neurons)
