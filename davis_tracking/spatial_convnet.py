@@ -99,11 +99,7 @@ class ConvNet(object):
                                                  padding=padding,
                                                  strides=kernel_stride,
                                                  init=init)
-                        
-                        #from nengo._vendor.npconv2d import conv2d
-                        #for e in np.eye(conv.output_shape.size):
-                        #    T = conv2d(e, conv)
-                        
+
                         if use_neurons:
                             ens = nengo.Ensemble(conv.output_shape.size, dimensions=1,
                                                  label='%s' % conv.output_shape)

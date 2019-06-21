@@ -34,6 +34,7 @@ class TrackingTrial(pytry.PlotTrial):
         self.param('normalize inputs', normalize=False)
         self.param('save parameters', save_params=True)
         self.param('load parameters from a file', load_params_from='')
+        self.param('scalar gain on firing rates of neurons', max_rate=2000)
         
         
     def evaluate(self, p, plt):
@@ -109,17 +110,10 @@ class TrackingTrial(pytry.PlotTrial):
             magnitude = np.linalg.norm(inputs_test.reshape(-1, dimensions), axis=1)
             inputs_test = inputs_test*(1.0/magnitude[:,None,None])
 
-
-                    
-        
-        
-        max_rate = 2000
-        amp = 1 / max_rate
-
         model = nengo.Network()
         with model:
-            model.config[nengo.Ensemble].neuron_type = nengo.RectifiedLinear(amplitude=amp)
-            model.config[nengo.Ensemble].max_rates = nengo.dists.Choice([max_rate])
+            model.config[nengo.Ensemble].neuron_type = nengo.RectifiedLinear(amplitude=1 / p.max_rate)
+            model.config[nengo.Ensemble].max_rates = nengo.dists.Choice([p.max_rate])
             model.config[nengo.Ensemble].intercepts = nengo.dists.Choice([0])
             model.config[nengo.Connection].synapse = None
 
@@ -163,7 +157,7 @@ class TrackingTrial(pytry.PlotTrial):
                 nengo.Connection(layer2.neurons, out, transform=conv3)
             else:
                 # do the weird spatially split convnet
-                convnet = davis_tracking.ConvNet(nengo.Network())
+                convnet = davis_tracking.ConvNet(nengo.Network(), max_rate=p.max_rate)
                 convnet.make_input_layer(
                         shape,
                         spatial_stride=(p.spatial_stride, p.spatial_stride), 
