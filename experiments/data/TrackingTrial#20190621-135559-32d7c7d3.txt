@@ -1,0 +1,50 @@
+separate_channels = True
+augment = False
+save_params = True
+n_features_2 = 10
+seed = 0
+n_parallel = 1
+split_spatial = False
+spatial_size = 12
+n_features_1 = 3
+minibatch_size = 200
+n_epochs = 200
+max_rate = 8000
+merge = 5
+dt = 0.1
+spatial_stride = 6
+learning_rate = 0.001
+decay_time = 0.01
+test_set = 'one'
+normalize = False
+saturation = 1000000000
+train_bias = False
+load_params_from = ''
+dt_test = 0.001
+n_data = -1
+dataset_dir = '../dataset'
+
+test_targets_raw = array([[18.5       , 28.81851852,  5.        ,  0.2       ],
+       [18.4       , 28.63703704,  5.        ,  0.2       ],
+       [18.3       , 28.45555556,  5.        ,  0.2       ],
+       ...,
+       [37.61414141, 27.37373737,  5.        ,  0.2       ],
+       [37.60707071, 27.38686869,  5.        ,  0.2       ],
+       [37.6       , 27.4       ,  5.        ,  0.2       ]])
+target_peak = array([[15.5, 25.5],
+       [15.5, 25.5],
+       [15.5, 25.5],
+       ...,
+       [34.5, 24.5],
+       [34.5, 24.5],
+       [34.5, 24.5]])
+data_peak = array([[11.5, 25.5],
+       [11.5, 25.5],
+       [11.5, 25.5],
+       ...,
+       [36.5, 23.5],
+       [36.5, 23.5],
+       [36.5, 23.5]])
+test_loss = 1.3089288
+max_n_neurons = 14080
+rmse_test = array([ 8.3313161 , 10.20100532])

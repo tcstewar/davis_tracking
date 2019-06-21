@@ -35,7 +35,7 @@ class TrackingTrial(pytry.PlotTrial):
         self.param('save parameters', save_params=True)
         self.param('load parameters from a file', load_params_from='')
         self.param('scalar gain on firing rates of neurons', max_rate=2000)
-        
+        self.param('trainable biases', train_bias=True)
         
     def evaluate(self, p, plt):
         files = []
@@ -117,10 +117,14 @@ class TrackingTrial(pytry.PlotTrial):
             model.config[nengo.Ensemble].intercepts = nengo.dists.Choice([0])
             model.config[nengo.Connection].synapse = None
 
+            if not p.train_bias:
+                nengo_dl.configure_settings(trainable=None)
+                model.config[nengo.ensemble.Neurons].trainable = False
+
             inp = nengo.Node(
                 nengo.processes.PresentInput(inputs_test.reshape(-1, dimensions), dt_test),
                 size_out=dimensions,
-                )
+            )
 
             out = nengo.Node(None, size_in=targets_train.shape[-1])
             
