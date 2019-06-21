@@ -17,7 +17,7 @@ class TrackingTrial(pytry.PlotTrial):
         self.param('dt', dt=0.1)
         self.param('dt_test', dt_test=0.001)
         self.param('decay time (input synapse)', decay_time=0.01)
-        self.param('test set (odd|one)', test_set='one')
+        self.param('test set (odd|one|train)', test_set='one')
         self.param('augment training set with flips', augment=False)
         self.param('miniback size', minibatch_size=200)
         self.param('learning rate', learning_rate=1e-3)
@@ -106,11 +106,19 @@ class TrackingTrial(pytry.PlotTrial):
                 imgs = np.array(frames)
             inputs_test = imgs
 
-            targets_test_raw = targs
+            targets_test_raw = targs[:, :2]
             targets_test = davis_tracking.make_heatmap(targs, merge=p.merge, strip_edges=strip_edges).reshape(len(targs), -1)
             inputs_train = inputs_all
             targets_train = targets_all
             dt_test = p.dt_test
+        elif p.test_set == 'train':
+            inputs_train = inputs_all
+            inputs_test = inputs_all
+            targets_train = targets_all
+            targets_test = targets_all
+            targets_test_raw = targets_all_raw
+            dt_test = p.dt
+
             
         if p.separate_channels and not p.use_frames:
             shape = (2, 180//p.merge, 240//p.merge)
