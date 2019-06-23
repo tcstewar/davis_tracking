@@ -262,12 +262,22 @@ class TrackingTrial(pytry.PlotTrial):
             data_peak_f = nengo.synapses.Lowpass(0.0).filt(data_peak)
             data_peak_f_slices = data_peak_f[::int(dt_test/0.001)]
 
+            target_smooth = (targets_test_raw - strip_edges)*p.merge
+            is_in_range = (target_smooth[:,0] > 0) & (target_smooth[:,0] < 240-strip_edges*2*p.merge) & (target_smooth[:,1] > 0) & (target_smooth[:,1] < 180-strip_edges*2*p.merge)
+            rmse_in_range = np.sqrt(np.mean((target_smooth-data_peak_f_slices*p.merge)[is_in_range]**2, axis=0))
+
+
+            #target_smooth = (target_peak)*p.merge
+            #is_in_range = (target_smooth[:,0] > 0) & (target_smooth[:,0] < 240-strip_edges*2*p.merge) & (target_smooth[:,1] > 0) & (target_smooth[:,1] < 180-strip_edges*2*p.merge)
+            #rmse_in_range = np.sqrt(np.mean((target_smooth-data_peak*p.merge)[is_in_range]**2, axis=0))
+
             rmse_test = np.sqrt(np.mean((target_peak-data_peak_f_slices)**2, axis=0))*p.merge          
             if plt:
                 plt.subplot(1,1,1)
                 plt.plot(data_peak_f_slices*p.merge)
                 plt.plot(target_peak*p.merge, ls='--')
                 plt.plot((targets_test_raw-strip_edges)*p.merge, ls=':')
+                plt.fill_between(np.arange(len(is_in_range)), 240-is_in_range.astype(float)*240, facecolor='#eeeeee')
 
                 #plt.subplot(2,2,2)
                 #plt.plot(np.mean(data, axis=0))
@@ -286,6 +296,7 @@ class TrackingTrial(pytry.PlotTrial):
                 
             return dict(
                 rmse_test = rmse_test,
+                rmse_in_range = rmse_in_range,
                 max_n_neurons = max([ens.n_neurons for ens in model.all_ensembles]),
                 test_targets_raw = targets_test_raw,
                 target_peak = target_peak,
@@ -326,14 +337,21 @@ class TrackingTrial(pytry.PlotTrial):
         data_peak = np.array([davis_tracking.find_peak(d.reshape(output_shape)) for d in data])
         target_peak = np.array([davis_tracking.find_peak(d.reshape(output_shape)) for d in targets_test])
 
+        
+        target_smooth = (targets_test_raw - strip_edges)*p.merge
+        is_in_range = (target_smooth[:,0] > 0) & (target_smooth[:,0] < 240-strip_edges*2*p.merge) & (target_smooth[:,1] > 0) & (target_smooth[:,1] < 180-strip_edges*2*p.merge)
+        rmse_in_range = np.sqrt(np.mean((target_smooth-data_peak*p.merge)[is_in_range]**2, axis=0))
+
         rmse_test = np.sqrt(np.mean((target_peak-data_peak)**2, axis=0))*p.merge          
         if plt:
             plt.plot(data_peak*p.merge)
             plt.plot(target_peak*p.merge, ls='--')
             plt.plot((targets_test_raw-strip_edges)*p.merge, ls=':')
+            plt.fill_between(np.arange(len(is_in_range)), 240-is_in_range.astype(float)*240, facecolor='#eeeeee')
             
         return dict(
             rmse_test = rmse_test,
+            rmse_in_range = rmse_in_range,
             max_n_neurons = max([ens.n_neurons for ens in model.all_ensembles]),
             #test_targets = targets_test,
             test_targets_raw = targets_test_raw,
