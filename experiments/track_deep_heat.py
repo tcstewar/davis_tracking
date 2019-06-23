@@ -73,9 +73,7 @@ class TrackingTrial(pytry.PlotTrial):
                 frames = []
                 for t in times:
                     index = np.searchsorted(times_frames, t)
-                    if index == len(times_frames):
-                        index = -1
-                    frames.append(frames_raw[index])
+                    frames.append(frames_raw[index-1]*2-1)
                 imgs = np.array(frames)
 
             inputs.append(imgs)
@@ -102,7 +100,7 @@ class TrackingTrial(pytry.PlotTrial):
                 frames = []
                 for t in times:
                     index = np.searchsorted(times_frames, t)
-                    frames.append(frames_raw[index])
+                    frames.append(frames_raw[index-1]*2-1)
                 imgs = np.array(frames)
             inputs_test = imgs
 
