@@ -35,7 +35,7 @@ class TrackingTrial(pytry.PlotTrial):
         self.param('save parameters', save_params=True)
         self.param('load parameters from a file', load_params_from='')
         self.param('use nengo (instead of nengo_dl)', use_nengo=False)
-        self.param('use frame input (instead of events)', use_frames=False)
+        self.param('input data (events|frames|both)', input_data='events')
         
         
     def evaluate(self, p, plt):
@@ -68,13 +68,16 @@ class TrackingTrial(pytry.PlotTrial):
             times, imgs, targs = davis_tracking.load_data(f, dt=p.dt, decay_time=p.decay_time,
                                                   separate_channels=p.separate_channels, 
                                                   saturation=p.saturation, merge=p.merge)
-            if p.use_frames:
+            if p.input_data in ['frames', 'both']:
                 times_frames, frames_raw = davis_tracking.load_frames(f.replace('.events', '.frame'), merge=p.merge)
                 frames = []
                 for t in times:
                     index = np.searchsorted(times_frames, t)
                     frames.append(frames_raw[index-1]*2-1)
-                imgs = np.array(frames)
+                if p.input_data == 'both':
+                    imgs = np.hstack([imgs, frames])
+                else:
+                    imgs = np.array(frames)
 
             inputs.append(imgs)
             targets_raw.append(targs[:, :2])
@@ -95,13 +98,16 @@ class TrackingTrial(pytry.PlotTrial):
             times, imgs, targs = davis_tracking.load_data(test_file, dt=p.dt_test, decay_time=p.decay_time,
                                                   separate_channels=p.separate_channels, 
                                                   saturation=p.saturation, merge=p.merge)
-            if p.use_frames:
+            if p.input_data in ['frames', 'both']:
                 times_frames, frames_raw = davis_tracking.load_frames(test_file.replace('.events', '.frame'), merge=p.merge)
                 frames = []
                 for t in times:
                     index = np.searchsorted(times_frames, t)
                     frames.append(frames_raw[index-1]*2-1)
-                imgs = np.array(frames)
+                if p.input_data == 'both':
+                    imgs = np.hstack([imgs, frames])
+                else:
+                    imgs = np.array(frames)
             inputs_test = imgs
 
             targets_test_raw = targs[:, :2]
@@ -117,11 +123,20 @@ class TrackingTrial(pytry.PlotTrial):
             targets_test_raw = targets_all_raw
             dt_test = p.dt
 
-            
-        if p.separate_channels and not p.use_frames:
-            shape = (2, 180//p.merge, 240//p.merge)
-        else:
+        if p.input_data == 'events':
+            if p.separate_channels:
+                shape = (2, 180//p.merge, 240//p.merge)
+            else:
+                shape = (1, 180//p.merge, 240//p.merge)
+        elif p.input_data == 'frames':
             shape = (1, 180//p.merge, 240//p.merge)
+        elif p.input_data == 'both':
+            if p.separate_channels:
+                shape = (3, 180//p.merge, 240//p.merge)
+            else:
+                shape = (2, 180//p.merge, 240//p.merge)
+
+
         output_shape = shape[1]-strip_edges*2, shape[2]-strip_edges*2
         
         dimensions = shape[0]*shape[1]*shape[2]
@@ -278,6 +293,7 @@ class TrackingTrial(pytry.PlotTrial):
                 plt.plot(target_peak*p.merge, ls='--')
                 plt.plot((targets_test_raw-strip_edges)*p.merge, ls=':')
                 plt.fill_between(np.arange(len(is_in_range)), 240-is_in_range.astype(float)*240, facecolor='#eeeeee')
+                plt.legend(['x', 'y', 'x (actual)', 'y (actual)', 'x (raw)', 'y (raw)'])
 
                 #plt.subplot(2,2,2)
                 #plt.plot(np.mean(data, axis=0))
