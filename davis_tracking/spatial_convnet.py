@@ -7,7 +7,7 @@ def conv_to_dense(conv):
     dense = np.empty((conv.size_out, conv.size_in))
     
     dt = 1
-    with nengo.Network() as model:
+    with nengo.Network(add_to_container=False) as model:
         stim = nengo.Node(output=nengo.processes.PresentInput(
             np.eye(conv.size_in), dt))
         x = nengo.Node(size_in=conv.size_out)
