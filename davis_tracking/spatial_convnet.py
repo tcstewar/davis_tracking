@@ -83,6 +83,7 @@ class ConvNet(object):
                           n_local, kernel_stride, kernel_size, padding='valid',
                           use_neurons=True, init=nengo.dists.Uniform(-1,1)):
         with self.net:
+            layer_index = 0
             prev_layer = self.layers[-1]
             prev_output_shape = self.output_shapes[-1]
             layer = []
@@ -102,12 +103,13 @@ class ConvNet(object):
 
                         if use_neurons:
                             ens = nengo.Ensemble(conv.output_shape.size, dimensions=1,
-                                                 label='%s' % conv.output_shape)
+                                                 label='%s%d' % (conv.output_shape, layer_index))
                             ens_neurons = ens.neurons
                         else:
                             ens = nengo.Node(None, size_in=conv.output_shape.size,
-                                             label='%s' % conv.output_shape)
+                                             label='%s%d' % (conv.output_shape, layer_index))
                             ens_neurons = ens
+                        layer_index += 1
                             
                         if len(self.layers) == 1:
                             # work-around for NxSDK limitation with convolutional
