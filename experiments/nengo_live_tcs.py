@@ -19,8 +19,6 @@ from pytry.read import text
 import davis_tracking
 print(davis_tracking.__file__)
 
-import sdl2.ext
-
 
 # model file generated via:
 # repo: https://github.com/tcstewar/davis_tracking/
@@ -97,8 +95,9 @@ with nengo.Network() as model:
     convnet.make_middle_layer(n_features=p.n_features_2, n_parallel=p.n_parallel, n_local=1,
                               kernel_stride=(1,1), kernel_size=(3,3), init=init)
     init = params[4]['transform'].init #if params is not None else nengo.dists.Uniform(-1, 1)
+    scale = 0.1
     convnet.make_middle_layer(n_features=1, n_parallel=p.n_parallel, n_local=1,
-                              kernel_stride=(1,1), kernel_size=(3,3), init=init, use_neurons=True)
+                              kernel_stride=(1,1), kernel_size=(3,3), init=init*scale, use_neurons=True)
     
 
     #out = nengo.Node(lambda t, x: x, size_in=1)
@@ -184,7 +183,7 @@ print("=====================")
 height, width = output_shape
 print("Width: %d, height %d" % (width, height))
 
-t_step = 10.0
+t_step = 3.0
 import timeit
 now = None
 
@@ -205,4 +204,5 @@ with nengo_loihi.Simulator(model, dt=dt,
                 t2 = timeit.default_timer()
                 print('Rate:', t_step/(t2-now))
                 now = t2
+            1/0
 
