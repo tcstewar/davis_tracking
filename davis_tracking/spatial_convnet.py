@@ -103,11 +103,11 @@ class ConvNet(object):
 
                         if use_neurons:
                             ens = nengo.Ensemble(conv.output_shape.size, dimensions=1,
-                                                 label='%s%d' % (conv.output_shape, layer_index))
+                                                 label='%s%04d' % (conv.output_shape, layer_index))
                             ens_neurons = ens.neurons
                         else:
                             ens = nengo.Node(None, size_in=conv.output_shape.size,
-                                             label='%s%d' % (conv.output_shape, layer_index))
+                                             label='%s%04d' % (conv.output_shape, layer_index))
                             ens_neurons = ens
                         layer_index += 1
                             

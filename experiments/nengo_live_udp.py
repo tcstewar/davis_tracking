@@ -17,7 +17,9 @@ from nengo_loihi.hardware.allocators import GreedyChip
 from pytry.read import text
 
 import davis_tracking
-print(davis_tracking.__file__)
+import socket
+import struct
+import threading
 
 
 # model file generated via:
@@ -188,6 +190,14 @@ import timeit
 now = None
 
 
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+target = ('172.16.103.134', 21212)
+
+def dvs_hook(pos):
+    s.sendto(struct.pack('<HH', *pos), target)
+
+
+
 with nengo_loihi.Simulator(model, dt=dt, 
                            #precompute=True, 
                            target="loihi",
@@ -195,10 +205,12 @@ with nengo_loihi.Simulator(model, dt=dt,
                            hardware_options={'allocator': GreedyChip(2)}
                            ) as sim:
 
+
+    sim.dvs_hook = dvs_hook
+
     running = True
     while running:
             sim.run(t_step)
-            print(len(sim.dvs_data), sim.dvs_data[-10:])
             #if len(sim.dvs_data) > 3000:
             #    running = False
             if now is None:
