@@ -35,7 +35,8 @@ class ConvNet(object):
     def make_input_layer(self, source_shape,
                          spatial_stride=(1, 1),
                          spatial_size=None,
-                         use_separate_nodes=False):        
+                         use_separate_nodes=False,
+                         index_map=None):        
         if spatial_size is None:
             spatial_size = (source_shape[2], source_shape[1])
 
@@ -49,7 +50,11 @@ class ConvNet(object):
             j = 0
             w = spatial_size[0]
             h = spatial_size[1]
-            items = np.arange(source_shape[1]*source_shape[2])
+            if index_map is not None:
+                items = index_map
+            else:
+                items = np.arange(source_shape[1]*source_shape[2])
+
             items.shape = source_shape[1:]
             layer = []
             while j + h <= source_shape[1]:
